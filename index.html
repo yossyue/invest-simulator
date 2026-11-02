@@ -1,0 +1,872 @@
+<title>投資ルール・シミュレーター</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+JP:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    color-scheme: light;
+    --plane: #eef2f0; --surface: #ffffff; --surface-2: #f4f8f6;
+    --ink: #14201c; --ink-2: #53605b; --ink-muted: #85918b; --line: #e2e9e5;
+    --accent: #1f7a5c; --accent-soft: #e2f0ea;
+    --series-core: #2a78d6; --series-cash: #1baf7a; --series-crypto: #eb6834;
+    --good: #0a8f0a; --warning: #b9770a; --critical: #c8392f; --goal: #85918b;
+    --shadow: 0 1px 2px rgba(20,32,28,.05), 0 8px 24px -12px rgba(20,32,28,.12);
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: "IBM Plex Sans JP", system-ui, -apple-system, "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --plane: #0b0e0d; --surface: #161a19; --surface-2: #1d2321;
+      --ink: #eef3f1; --ink-2: #aeb9b4; --ink-muted: #7d8883; --line: #29302d;
+      --accent: #40b088; --accent-soft: #16332a;
+      --series-core: #3987e5; --series-cash: #1fa778; --series-crypto: #e06a3c;
+      --good: #2fae2f; --warning: #e0a13d; --critical: #e05c50; --goal: #7d8883;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px -14px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --plane: #0b0e0d; --surface: #161a19; --surface-2: #1d2321;
+    --ink: #eef3f1; --ink-2: #aeb9b4; --ink-muted: #7d8883; --line: #29302d;
+    --accent: #40b088; --accent-soft: #16332a;
+    --series-core: #3987e5; --series-cash: #1fa778; --series-crypto: #e06a3c;
+    --good: #2fae2f; --warning: #e0a13d; --critical: #e05c50; --goal: #7d8883;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px -14px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--plane); color: var(--ink); font-family: var(--sans); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 32px 22px 64px; }
+
+  header { margin-bottom: 22px; }
+  .eyebrow { font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-muted); font-weight: 600; margin: 0 0 6px; }
+  h1 { font-size: clamp(1.5rem, 1.1rem + 1.8vw, 2.05rem); font-weight: 700; margin: 0 0 8px; letter-spacing: -.01em; text-wrap: balance; }
+  .lede { margin: 0; color: var(--ink-2); max-width: 62ch; font-size: .95rem; }
+
+  .layout { display: grid; grid-template-columns: 366px 1fr; gap: 26px; align-items: start; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 8px 18px; box-shadow: var(--shadow);
+    position: sticky; top: 18px;
+    max-height: calc(100vh - 36px); overflow-y: auto; overscroll-behavior: contain;
+    scrollbar-width: thin; scrollbar-color: var(--ink-muted) transparent;
+  }
+  .panel::-webkit-scrollbar { width: 12px; }
+  .panel::-webkit-scrollbar-track { background: transparent; }
+  .panel::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; border: 3px solid var(--surface); }
+  .panel::-webkit-scrollbar-thumb:hover { background: var(--ink-muted); }
+  @media (max-width: 900px) { .panel { position: static; max-height: none; overflow-y: visible; } }
+
+  .group { border-top: 1px solid var(--line); padding: 16px 0 4px; }
+  .group:first-child { border-top: 0; }
+  .group-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+  .group-label { font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); font-weight: 700; margin: 0; }
+  .sublabel { font-size: .82rem; font-weight: 600; color: var(--ink-2); margin: 0 0 9px; display: flex; align-items: baseline; gap: 8px; }
+  .sublabel span { font-size: .72rem; font-weight: 500; color: var(--ink-muted); }
+  .group .sublabel:not(:first-of-type) { margin-top: 4px; }
+
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { font: inherit; font-size: .78rem; font-weight: 600; padding: 5px 11px; background: var(--surface); color: var(--ink-2); border: 0; border-left: 1px solid var(--line); cursor: pointer; }
+  .seg button:first-child { border-left: 0; }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
+  .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 14px; }
+  .modes button { font: inherit; font-size: .82rem; font-weight: 600; padding: 9px 6px; border-radius: 9px; cursor: pointer; background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line); transition: .12s; }
+  .modes button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .mode-desc { font-size: .8rem; color: var(--ink-muted); margin: -4px 0 14px; }
+
+  .ctrl { margin-bottom: 16px; }
+  .ctrl-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .ctrl-head label { font-size: .9rem; font-weight: 500; }
+  .ctrl-val { font-family: var(--mono); font-size: .86rem; color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .ctrl-val input { width: 4.4em; font: inherit; font-family: var(--mono); text-align: right; background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 2px 5px; -moz-appearance: textfield; }
+  .ctrl-val input::-webkit-outer-spin-button, .ctrl-val input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .ctrl-val input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .ctrl-val input::placeholder { color: var(--ink-muted); opacity: .8; }
+  input[type="range"] { width: 100%; margin: 9px 0 4px; accent-color: var(--accent); cursor: pointer; }
+  input[type="range"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .ctrl-hint { margin: 0; font-size: .76rem; color: var(--ink-muted); }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .pair .ctrl { margin-bottom: 12px; }
+  [hidden] { display: none !important; }
+
+  .check { display: flex; align-items: flex-start; gap: 9px; margin: 4px 0 14px; font-size: .84rem; cursor: pointer; }
+  .check input { margin-top: 3px; accent-color: var(--accent); }
+  .check .c-hint { display: block; font-size: .76rem; color: var(--ink-muted); }
+
+  details.adv { border-top: 1px solid var(--line); padding: 14px 0 6px; }
+  details.adv > summary { cursor: pointer; font-size: .82rem; font-weight: 600; color: var(--ink-2); list-style: none; display: flex; align-items: center; gap: 6px; }
+  details.adv > summary::-webkit-details-marker { display: none; }
+  details.adv > summary::before { content: "＋"; color: var(--ink-muted); font-family: var(--mono); }
+  details.adv[open] > summary::before { content: "−"; }
+  details.adv > summary + * { margin-top: 15px; }
+
+  .results { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px; box-shadow: var(--shadow); }
+  .card h3 { font-size: .95rem; margin: 0 0 4px; font-weight: 600; }
+  .card .h-note { margin: 0 0 14px; font-size: .8rem; color: var(--ink-muted); }
+
+  .headline .label { font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-muted); font-weight: 600; margin: 0 0 6px; }
+  .headline .figure { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .headline .big { font-family: var(--mono); font-weight: 600; font-variant-numeric: tabular-nums; font-size: clamp(2.4rem, 1.6rem + 3.4vw, 3.4rem); line-height: 1; letter-spacing: -.02em; color: var(--accent); }
+  .headline .unit { font-size: 1.1rem; font-weight: 600; color: var(--ink-2); }
+  .headline .gap { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; font-family: var(--mono); font-size: .9rem; font-weight: 600; padding: 4px 11px; border-radius: 999px; }
+  .gap.good { background: color-mix(in srgb, var(--good) 15%, transparent); color: var(--good); }
+  .gap.warning { background: color-mix(in srgb, var(--warning) 16%, transparent); color: var(--warning); }
+  .gap.critical { background: color-mix(in srgb, var(--critical) 15%, transparent); color: var(--critical); }
+  .headline .sub { margin: 12px 0 0; font-size: .84rem; color: var(--ink-2); }
+  .headline .sub b { font-weight: 600; color: var(--ink); }
+  .warnbar { margin-top: 12px; font-size: .82rem; padding: 8px 12px; border-radius: 8px; background: color-mix(in srgb, var(--warning) 14%, transparent); color: var(--warning); }
+
+  .bar-goal { margin-top: 16px; }
+  .bar-goal .track { height: 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+  .bar-goal .fill { height: 100%; background: var(--accent); border-radius: 999px; transition: width .35s ease; }
+  .bar-goal .cap { display: flex; justify-content: space-between; font-size: .74rem; color: var(--ink-muted); margin-top: 5px; font-family: var(--mono); }
+
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px; }
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+  @media (max-width: 520px) { .tiles, .kpis { grid-template-columns: 1fr; } }
+  .tile { background: var(--surface-2); border-radius: 10px; padding: 12px 13px; border: 1px solid var(--line); }
+  .tile .t-name { font-size: .78rem; color: var(--ink-2); display: flex; align-items: center; gap: 6px; }
+  .tile .dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+  .tile .t-val { font-family: var(--mono); font-weight: 600; font-size: 1.12rem; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .tile .t-sub { font-size: .74rem; color: var(--ink-muted); font-family: var(--mono); }
+  .kpi .k-name { font-size: .76rem; color: var(--ink-muted); }
+  .kpi .k-val { font-family: var(--mono); font-weight: 600; font-size: 1rem; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 8px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; color: var(--ink-2); }
+  .legend .dot { width: 10px; height: 10px; border-radius: 3px; }
+  .chart-wrap { position: relative; }
+  svg .grid { stroke: var(--line); stroke-width: 1; }
+  svg .axis { stroke: var(--goal); stroke-width: 1; }
+  svg .tick { fill: var(--ink-muted); font-size: 11px; font-family: var(--mono); }
+  svg .goal-line { stroke: var(--goal); stroke-width: 1.5; stroke-dasharray: 5 4; }
+  svg .goal-label { fill: var(--ink-2); font-size: 11px; font-weight: 600; font-family: var(--sans); }
+  svg .dlabel { font-size: 11px; font-weight: 600; font-family: var(--sans); }
+  svg .bar-label { fill: var(--ink); font-size: 12px; font-weight: 600; font-family: var(--mono); }
+  svg .cmp-name { fill: var(--ink-2); font-size: 11.5px; font-family: var(--sans); }
+  svg .cmp-val { fill: var(--ink); font-size: 11.5px; font-weight: 600; font-family: var(--mono); }
+  svg rect.seg, svg rect.cbar { transition: all .35s ease; }
+  @media (prefers-reduced-motion: reduce) { svg rect.seg, svg rect.cbar, .bar-goal .fill { transition: none; } }
+
+  .tooltip { position: absolute; pointer-events: none; opacity: 0; transition: opacity .12s; background: var(--ink); color: var(--plane); border-radius: 8px; padding: 9px 11px; font-size: .78rem; line-height: 1.5; white-space: nowrap; z-index: 5; box-shadow: 0 6px 20px -6px rgba(0,0,0,.4); }
+  .tooltip.on { opacity: 1; }
+  .tooltip .tt-age { font-weight: 700; margin-bottom: 3px; }
+  .tooltip .tt-row { display: flex; justify-content: space-between; gap: 16px; font-family: var(--mono); }
+  .tooltip .tt-total { border-top: 1px solid color-mix(in srgb, var(--plane) 30%, transparent); margin-top: 4px; padding-top: 3px; font-weight: 700; }
+
+  details.tablewrap summary { cursor: pointer; font-size: .85rem; font-weight: 600; color: var(--ink-2); list-style: none; }
+  details.tablewrap summary::-webkit-details-marker { display: none; }
+  details.tablewrap summary::before { content: "▸ "; color: var(--ink-muted); }
+  details.tablewrap[open] summary::before { content: "▾ "; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: .8rem; }
+  th, td { text-align: right; padding: 7px 7px; font-variant-numeric: tabular-nums; font-family: var(--mono); }
+  th { color: var(--ink-muted); font-weight: 600; border-bottom: 1px solid var(--line); font-family: var(--sans); }
+  td:first-child, th:first-child { text-align: left; }
+  tbody tr:not(:last-child) td { border-bottom: 1px solid var(--line); }
+  tbody tr:last-child td { font-weight: 700; color: var(--ink); }
+
+
+  .scn-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 14px; margin-bottom: 14px; }
+  .scn-inputs label { display: flex; flex-direction: column; gap: 4px; font-size: .78rem; color: var(--ink-2); }
+  .scn-inputs .f { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: .86rem; color: var(--ink-2); }
+  .scn-inputs input { width: 4.6em; font: inherit; font-family: var(--mono); text-align: right; background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
+  .scn-inputs input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .scn-note { margin: 10px 0 0; font-size: .78rem; color: var(--ink-muted); }
+
+  footer { margin-top: 30px; font-size: .78rem; color: var(--ink-muted); line-height: 1.7; }
+  footer b { color: var(--ink-2); font-weight: 600; }
+  footer ul { margin: 6px 0; padding-left: 1.1em; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">資産形成プラン · 期間指定シミュレーション</p>
+    <h1>投資ルール・シミュレーター</h1>
+    <p class="lede">開始年齢・目標年齢・年収・支出・毎月の投資の決め方を入力すると、その期間を1年ずつ積み上げて、目標年齢時点の総資産（コア株式＋現金＋暗号資産）を試算します。</p>
+  </header>
+
+  <div class="layout">
+    <form class="panel" id="panel" autocomplete="off">
+
+      <div class="group">
+        <p class="group-label">期間</p>
+        <div class="pair" id="periodPair"></div>
+        <p class="ctrl-hint" id="periodNote"></p>
+      </div>
+
+      <div class="group">
+        <p class="group-label">目標</p>
+        <div id="goalBox"></div>
+      </div>
+
+      <div class="group">
+        <p class="group-label">収入</p>
+        <p class="sublabel">本業の額面年収</p>
+        <div class="pair" id="incomePair"></div>
+        <p class="sublabel">副業（税引後・年額）<span>本業とは別枠</span></p>
+        <div class="pair" id="incomeSide"></div>
+      </div>
+
+      <div class="group">
+        <div class="group-head">
+          <p class="group-label">支出</p>
+          <div class="seg" id="expSeg">
+            <button type="button" data-v="fixed" aria-pressed="true">定額</button>
+            <button type="button" data-v="ratio" aria-pressed="false">手取りの割合</button>
+          </div>
+        </div>
+        <div class="pair" id="expFixed"></div>
+        <div class="pair" id="expRatio" hidden></div>
+        <p class="ctrl-hint" id="expNote"></p>
+      </div>
+
+      <div class="group">
+        <p class="group-label">毎月の投資額の決め方</p>
+        <div class="modes" id="modes"></div>
+        <p class="mode-desc" id="modeDesc"></p>
+        <div id="params"></div>
+        <label class="check"><input type="checkbox" id="sweep">
+          <span>余剰の現金を年1回 株式へ回す<span class="c-hint">オフにすると余剰はすべて現金のまま。保持額は詳細設定。</span></span>
+        </label>
+      </div>
+
+      <details class="adv"><summary>詳細設定</summary><div id="common"></div></details>
+    </form>
+
+    <div class="results">
+      <section class="card headline">
+        <p class="label" id="hdLabel">目標年齢時点の総資産（時価）</p>
+        <div class="figure">
+          <span class="big" id="total">–</span><span class="unit">万円</span>
+          <span class="gap" id="gap"></span>
+        </div>
+        <p class="sub" id="sub"></p>
+        <div class="warnbar" id="warn" hidden></div>
+        <div class="bar-goal">
+          <div class="track"><div class="fill" id="goalFill"></div></div>
+          <div class="cap"><span>0</span><span id="goalCap">目標</span></div>
+        </div>
+        <div class="tiles" id="tiles"></div>
+        <div class="kpis" id="kpis"></div>
+      </section>
+
+      <section class="card">
+        <h3>税金（売却した場合の目安）</h3>
+        <p class="h-note">上の総資産は時価（含み益ベース、税引前）。ここでは今すべて売却したと仮定した場合の税引後の目安を出す。</p>
+        <div id="taxBody"></div>
+      </section>
+
+      <section class="card">
+        <h3>資産の推移</h3>
+        <p class="h-note">各年末の評価額。積み上げ＝コア株式／現金プール／暗号資産（時価）。破線が目標額。</p>
+        <div class="legend" id="legend"></div>
+        <div class="chart-wrap">
+          <svg id="chart" viewBox="0 0 760 380" role="img" aria-label="期間の資産推移の積み上げ棒グラフ"></svg>
+          <div class="tooltip" id="tip"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>決め方の比較</h3>
+        <p class="h-note">いまの前提のまま、投資の決め方だけを4通りに変えた目標年齢時点の総資産。選択中を濃色で表示。</p>
+        <div class="chart-wrap">
+          <svg id="cmp" viewBox="0 0 760 210" role="img" aria-label="決め方別の総資産の比較"></svg>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>利回りシナリオ</h3>
+        <p class="h-note">株式の利回りと副業の達成度を下振れ・上振れに振ったときの、目標年齢時点の総資産。決め方は選択中のものを使います。</p>
+        <div class="scn-inputs">
+          <label for="scnDownDelta">下振れ：利回りの増減（6%→4%なら -2）<span class="f"><input type="number" id="scnDownDelta" step="0.5" value="-2"> %</span></label>
+          <label for="scnUpDelta">上振れ：利回りの増減（6%→7.5%なら +1.5）<span class="f"><input type="number" id="scnUpDelta" step="0.5" value="1.5"> %</span></label>
+          <label for="scnDownSide">下振れ：副業の達成度<span class="f"><input type="number" id="scnDownSide" step="5" value="70"> %</span></label>
+          <label for="scnUpSide">上振れ：副業の達成度<span class="f"><input type="number" id="scnUpSide" step="5" value="120"> %</span></label>
+        </div>
+        <div class="chart-wrap">
+          <svg id="scn" viewBox="0 0 760 170" role="img" aria-label="下振れ・基本・上振れシナリオ別の総資産の比較"></svg>
+        </div>
+        <p class="scn-note" id="scnNote"></p>
+      </section>
+
+      <section class="card">
+        <details class="tablewrap">
+          <summary>年次テーブルを表示</summary>
+          <div style="overflow-x:auto"><table id="table"></table></div>
+        </details>
+      </section>
+
+      <footer>
+        <b>前提と注意</b>
+        <ul>
+          <li>「手取り」は本業の額面からの簡易推計（社会保険＋所得税＋住民税、独身・扶養なし）。開始年齢が23歳以下なら1年目の手取りを1割減（賞与が薄い新卒想定）。年収・副業・支出はいずれも開始年齢→目標年齢の入力値を直線補間（各年の値は年次テーブルで確認）。</li>
+          <li>支出の「手取りの割合」は<b>本業の手取り月収</b>に対する割合（副業は含めない）。</li>
+          <li>毎月の投資額を除いた残り（手取り＋副業−支出−投資）は現金プールに積む。暗号資産の投入も現金プールから。「株式へ回す」設定で、保持額を超えた現金プールを年1回コア株式へ移す。</li>
+          <li>コア株式・現金プール・暗号資産はそれぞれ入力した利回りで成長（円ベース名目、為替・暴落の経路・インフレ・信託報酬は除く）。暗号資産の利益率は全期間トータルの騰落率。</li>
+          <li>コアの拠出は生涯枠1,800万・年間枠360万までNISAで非課税、それを超えた分は課税口座として積み上がる想定でコアの評価額・含み益を按分。「税金」カードの税引後の目安は、<b>その時点で全部売却したと仮定</b>した概算（課税口座分の含み益に20.315%＝上場株式等の申告分離課税、暗号資産の含み益に指定税率＝雑所得・総合課税の目安）。実際は損益通算・所得控除・売却タイミングで変わる。NISA枠内は保有中・売却時とも非課税（枠は再利用しない前提）。</li>
+          <li><b>計画用の試算であり投資助言ではありません。実際の税額は税理士等に確認してください。</b>将来の成果を保証しません。</li>
+        </ul>
+      </footer>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var MODES = [
+    { id: "flat",  name: "定額",         desc: "毎月おなじ額を全期間。いちばんシンプル。" },
+    { id: "ramp",  name: "定額（逓増）", desc: "開始年齢の額から目標年齢の額へ、毎年少しずつ増やす。" },
+    { id: "ratio", name: "手取りの割合", desc: "その年の本業手取り月収の一定割合を投資。昇給に自動で連動。" },
+    { id: "rule",  name: "ルール式",     desc: "手取り＋副業−支出＝S。最低額を確保し、余った分の一定割合を投資。" }
+  ];
+  var PARAMS = {
+    flat:  [{ id: "flatAmt", label: "毎月の投資額", min: 0, max: 60, step: 0.5, val: 12, unit: "万", hint: "全期間ずっとこの額" }],
+    ramp:  [{ id: "rampFrom", label: "開始年齢の月額", min: 0, max: 40, step: 0.5, val: 9, unit: "万", hint: "1年目の毎月の投資額" },
+            { id: "rampTo",   label: "目標年齢の月額", min: 0, max: 70, step: 0.5, val: 28, unit: "万", hint: "最終年の毎月の投資額（直線で増加）" }],
+    ratio: [{ id: "invPct", label: "本業手取りに対する割合", min: 0, max: 90, step: 1, val: 45, unit: "%", hint: "実家・低支出なら45〜60%も" }],
+    rule:  [{ id: "ruleBase",  label: "最低投資額 / 月", min: 0, max: 30, step: 0.5, val: 10, unit: "万", hint: "余剰が少ない年でも確保する額" },
+            { id: "ruleShare", label: "余剰（S−最低額）の投資割合", min: 0, max: 100, step: 5, val: 50, unit: "%", hint: "残りは現金プールへ" }]
+  };
+  var PERIOD = [
+    { id: "startAge", label: "開始年齢", min: 16, max: 55, step: 1, val: 22, unit: "歳", hint: "投資を始める年齢", age: 1 },
+    { id: "endAge",   label: "目標年齢", min: 17, max: 70, step: 1, val: 30, unit: "歳", hint: "この年齢の資産を見る", age: 1 }
+  ];
+  var GOALBOX = [{ id: "goal", label: "到達したい額", min: 500, max: 30000, step: 100, val: 5000, unit: "万", hint: "この額と結果を比較する" }];
+  var INCOME_PAIR = [
+    { id: "gStart", label: "開始", min: 0, max: 1200, step: 10, val: 400, unit: "万", hint: "1年目の額面", ageLbl: "s" },
+    { id: "gEnd",   label: "目標", min: 0, max: 2000, step: 10, val: 800, unit: "万", hint: "最終年の額面", ageLbl: "e" }
+  ];
+  var INCOME_SIDE = [
+    { id: "sideStart", label: "開始", min: 0, max: 500, step: 10, val: 0, unit: "万", hint: "1年目の副業（税引後）", ageLbl: "s" },
+    { id: "sideEnd",   label: "目標", min: 0, max: 800, step: 10, val: 0, unit: "万", hint: "最終年の副業。両方0で副業なし", ageLbl: "e" }
+  ];
+  var EXP_FIXED = [
+    { id: "expStart", label: "開始", min: 0, max: 50, step: 0.1, val: 12, unit: "万", hint: "月の支出。実家暮らしなら低めに", ageLbl: "s" },
+    { id: "expEnd",   label: "目標", min: 0, max: 60, step: 0.1, val: 14, unit: "万", hint: "独立や生活拡大を織り込むなら増やす", ageLbl: "e" }
+  ];
+  var EXP_RATIO = [
+    { id: "expPctStart", label: "開始", min: 0, max: 95, step: 1, val: 48, unit: "%", hint: "手取り約25万 × 48% ≒ 12万", ageLbl: "s" },
+    { id: "expPctEnd",   label: "目標", min: 0, max: 95, step: 1, val: 35, unit: "%", hint: "昇給ぶん支出を抑えるなら下げる", ageLbl: "e" }
+  ];
+  var COMMON = [
+    { id: "startAssets", label: "スタート資産", min: 0, max: 2000, step: 10, val: 50, unit: "万", hint: "開始時点の投資元手" },
+    { id: "stock",       label: "株式の平均利回り（年）", min: 0, max: 12, step: 0.1, val: 6, unit: "%", hint: "S&P500/全世界株の想定" },
+    { id: "cashYield",   label: "現金プールの利回り（年）", min: 0, max: 4, step: 0.1, val: 0.3, unit: "%", hint: "普通預金〜個人向け国債" },
+    { id: "cryptoTotal", label: "暗号資産への総投入額", min: 0, max: 2000, step: 10, val: 0, unit: "万", hint: "現金プールから全期間で段階投入" },
+    { id: "cryptoGain",  label: "暗号資産の利益率（全期間）", min: -90, max: 900, step: 5, val: 50, unit: "%", hint: "+50 = 1.5倍" },
+    { id: "cryptoTaxRate", label: "暗号資産の税率（売却時・目安）", min: 0, max: 55, step: 1, val: 45, unit: "%", hint: "雑所得・総合課税の概算。所得が高いほど上がる" },
+    { id: "selfReserve", label: "自己投資・予備費（年）", min: 0, max: 200, step: 5, val: 30, unit: "万", hint: "現金プールから毎年支出" },
+    { id: "keepLiquid",  label: "現金プールの保持額", min: 0, max: 1500, step: 10, val: 200, unit: "万", hint: "これを超えた分を株式へ（株式へ回す設定時）" }
+  ];
+  var NET_TABLE = [[0,0],[300,242],[350,281],[400,319],[450,357],[500,393],[550,430],[600,464],[650,497],[700,530],[750,562],[800,596],[850,626],[900,655],[950,685],[1000,713],[1100,768],[1200,822],[1300,875],[1500,980],[2000,1290]];
+
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function years(s) { return Math.max(1, Math.round(s.endAge - s.startAge)); }
+  function tOf(s, i) { var n = years(s); return n > 1 ? i / (n - 1) : 0; }
+  function cryptoWeights(n) {
+    if (n <= 1) return [1];
+    var w = [], sum = 0;
+    for (var i = 0; i < n; i++) { var x = 0.6 + 0.8 * (i / (n - 1)); w.push(x); sum += x; }
+    return w.map(function (v) { return v / sum; });
+  }
+  function netFromGross(g) {
+    if (g <= 0) return 0;
+    if (g >= 2000) return 1290 + (g - 2000) * 0.58;
+    for (var i = 1; i < NET_TABLE.length; i++) {
+      if (g <= NET_TABLE[i][0]) {
+        var a = NET_TABLE[i - 1], b = NET_TABLE[i];
+        return a[1] + (b[1] - a[1]) * (g - a[0]) / (b[0] - a[0]);
+      }
+    }
+    return g * 0.7;
+  }
+  // interpolate a start/end pair; if only one end is filled, use it flat
+  function pairAt(s, k1, k2, i) {
+    var a = s[k1], b = s[k2];
+    if (!a && !b) return 0;
+    if (!a) a = b; if (!b) b = a;
+    return lerp(a, b, tOf(s, i));
+  }
+  function mNet(s, i) {
+    var n = netFromGross(pairAt(s, "gStart", "gEnd", i)) / 12;
+    return (i === 0 && s.startAge > 0 && s.startAge <= 23) ? n * 0.90 : n;
+  }
+  function mSide(s, i) { return pairAt(s, "sideStart", "sideEnd", i) / 12; }
+  function ySide(s, i) { return pairAt(s, "sideStart", "sideEnd", i); }
+  function mExpense(s, i) {
+    if (s.expMode === "ratio") return mNet(s, i) * pairAt(s, "expPctStart", "expPctEnd", i) / 100;
+    return pairAt(s, "expStart", "expEnd", i);
+  }
+  function mInvest(mode, s, i) {
+    if (mode === "flat") return s.flatAmt;
+    if (mode === "ramp") return pairAt(s, "rampFrom", "rampTo", i);
+    if (mode === "ratio") return mNet(s, i) * s.invPct / 100;
+    var S = mNet(s, i) + mSide(s, i) - mExpense(s, i);
+    if (S <= 0) return 0;
+    if (S < s.ruleBase) return S;
+    return s.ruleBase + (S - s.ruleBase) * s.ruleShare / 100;
+  }
+
+  var NISA_LIFETIME = 1800;   // 万円、生涯非課税保有限度額
+  var NISA_ANNUAL = 360;      // 万円、年間投資枠（つみたて120＋成長240）
+  var STOCK_TAX = 0.20315;    // 上場株式等の譲渡益・申告分離課税（所得税+復興税+住民税）
+
+  function project(mode, s) {
+    var n = years(s);
+    var r = s.stock / 100, gf = Math.pow(1 + r, 0.5), cr = s.cashYield / 100;
+    var cagr = Math.pow(1 + s.cryptoGain / 100, 1 / n) - 1;
+    var cw = cryptoWeights(n);
+    var cash = 0, deployed = 0, lots = [];
+    // コアはNISA枠（非課税・生涯1,800万）と課税口座に分けて追跡する
+    var nisaBasis = 0, taxableBasis = 0, nisaVal = 0, taxableVal = 0, nisaYear = 0;
+    function addToCore(amount, factor) {
+      if (amount <= 0) return;
+      var room = Math.max(0, Math.min(NISA_LIFETIME - nisaBasis, NISA_ANNUAL - nisaYear));
+      var toNisa = Math.min(amount, room);
+      var toTax = amount - toNisa;
+      nisaBasis += toNisa; nisaYear += toNisa; taxableBasis += toTax;
+      nisaVal += toNisa * factor; taxableVal += toTax * factor;
+    }
+    addToCore(s.startAssets, 1);
+    var totalInvest = 0, totalIncome = 0, totalSaved = 0, shortfall = 0, annualOverCount = 0, sweptTotal = 0, reservePaid = 0, reserveShort = 0;
+    var rows = [];
+    for (var i = 0; i < n; i++) {
+      var net = mNet(s, i), side = mSide(s, i), exp = mExpense(s, i);
+      var disp = net + side - exp;
+      var invM = mInvest(mode, s, i);
+      if (invM > Math.max(disp, 0) + 0.02) { shortfall += (invM - Math.max(disp, 0)) * 12; invM = Math.max(disp, 0); }
+      var leftM = Math.max(0, disp - invM);
+      var invA = invM * 12, leftA = leftM * 12;
+      totalInvest += invA;
+      totalIncome += (net + side) * 12; totalSaved += invA + leftA;
+      if (invA > NISA_ANNUAL) annualOverCount++;
+
+      if (i > 0) nisaYear = 0;
+      nisaVal *= (1 + r); taxableVal *= (1 + r);
+      addToCore(invA, gf);
+      cash = cash * (1 + cr) + leftA;
+      var payRes = Math.min(s.selfReserve, cash);
+      cash -= payRes; reservePaid += payRes; reserveShort += s.selfReserve - payRes;
+      var tr = s.cryptoTotal * cw[i];
+      var dep = Math.max(0, Math.min(tr, cash));
+      cash -= dep; deployed += dep;
+      if (dep > 0) lots.push({ amt: dep, i: i });
+      var sw = 0;
+      if (s.sweep && cash > s.keepLiquid) { sw = cash - s.keepLiquid; addToCore(sw, gf); cash = s.keepLiquid; sweptTotal += sw; }
+      var cv = 0;
+      for (var k = 0; k < lots.length; k++) cv += lots[k].amt * Math.pow(1 + cagr, (i - lots[k].i) + 1);
+      var core = nisaVal + taxableVal;
+      rows.push({ age: s.startAge + 1 + i, side: ySide(s, i), core: core, cash: cash, crypto: cv, invest: invA, left: leftA, swept: sw, total: core + cash + cv });
+    }
+    var last = rows[rows.length - 1];
+    var principal = s.startAssets + totalSaved - reservePaid;
+    var overLifetime = Math.max(0, taxableBasis);
+    // 税引後の目安（含み益を今すべて確定させた場合）
+    var stockGain = Math.max(0, taxableVal - taxableBasis);
+    var stockTax = stockGain * STOCK_TAX;
+    var cryptoGainAmt = Math.max(0, last.crypto - deployed);
+    var cryptoTax = cryptoGainAmt * (s.cryptoTaxRate / 100);
+    var afterTaxTotal = last.total - stockTax - cryptoTax;
+    var yr = s.endAge, v = last.total, lastAI = last.invest + last.left * (s.sweep ? 1 : 0);
+    while (v < s.goal && yr < s.endAge + 25) { v = v * (1 + r) + lastAI; yr++; }
+    return {
+      nisaBasis: nisaBasis, taxableBasis: taxableBasis, nisaVal: nisaVal, taxableVal: taxableVal,
+      stockGain: stockGain, stockTax: stockTax, cryptoGainAmt: cryptoGainAmt, cryptoTax: cryptoTax,
+      afterTaxTotal: afterTaxTotal, annualOverCount: annualOverCount,
+      rows: rows, last: last, years: n, swept: sweptTotal, reserveShort: reserveShort, principal: principal, gain: last.total - principal,
+      totalInvest: totalInvest, totalSaved: totalSaved, overLifetime: overLifetime,
+      savingsRate: totalIncome > 0 ? totalSaved / totalIncome : 0,
+      shortfall: shortfall, goalAge: v >= s.goal ? yr : null
+    };
+  }
+
+  function fmt(v) { return Math.round(v).toLocaleString("en-US"); }
+  function fmt1(v) { return (Math.round(v * 10) / 10).toString(); }
+
+  // Everything starts blank (0). The user fills in their own numbers.
+  var state = { mode: "rule", expMode: "fixed", sweep: false };
+  [PERIOD, GOALBOX, INCOME_PAIR, INCOME_SIDE, EXP_FIXED, EXP_RATIO, COMMON].forEach(function (list) {
+    list.forEach(function (c) { state[c.id] = 0; });
+  });
+  Object.keys(PARAMS).forEach(function (m) { PARAMS[m].forEach(function (c) { if (!(c.id in state)) state[c.id] = 0; }); });
+  function ready() { return state.startAge > 0 && state.endAge > state.startAge && (state.gStart > 0 || state.gEnd > 0); }
+
+  var MAX_SPAN = 45;
+  function ctrlRow(c) {
+    var row = document.createElement("div");
+    row.className = "ctrl";
+    var hasVal = state[c.id] > 0;
+    row.innerHTML =
+      '<div class="ctrl-head"><label for="' + c.id + '">' + c.label + '</label>' +
+      '<span class="ctrl-val"><input type="number" id="' + c.id + '-n" placeholder="—" min="' + c.min + '" max="' + c.max + '" step="' + c.step + '" value="' + (hasVal ? state[c.id] : "") + '"> ' + c.unit + '</span></div>' +
+      '<input type="range" id="' + c.id + '" min="' + c.min + '" max="' + c.max + '" step="' + c.step + '" value="' + (hasVal ? state[c.id] : c.min) + '" aria-label="' + c.label + '">' +
+      '<p class="ctrl-hint">' + c.hint + '</p>';
+    var range = row.querySelector("#" + c.id), num = row.querySelector("#" + c.id + "-n");
+    // Age controls only ever clamp THEMSELVES against the partner — the partner never moves.
+    // If the partner isn't filled in yet (still 0), don't constrain at all.
+    function ageClamp(val) {
+      if (c.id === "endAge") {
+        if (!(state.startAge > 0)) return val;
+        return Math.max(state.startAge + 1, Math.min(val, state.startAge + MAX_SPAN));
+      }
+      if (c.id === "startAge") {
+        if (!(state.endAge > 0)) return val;
+        return Math.max(state.endAge - MAX_SPAN, Math.min(val, state.endAge - 1));
+      }
+      return val;
+    }
+    function set(val, from, allowTransient) {
+      val = Math.min(c.max, Math.max(c.min, val));
+      if (c.age && !allowTransient) val = ageClamp(val);
+      state[c.id] = val;
+      // for age controls, also snap the slider thumb back when a drag overshoots the partner
+      if (from !== "range" || (c.age && !allowTransient)) range.value = val;
+      if (from !== "num") num.value = (c.step < 1) ? fmt1(val) : Math.round(val);
+      render();
+    }
+    function clearVal() { state[c.id] = 0; range.value = c.min; render(); }
+    range.addEventListener("input", function () { set(parseFloat(range.value), "range"); });
+    num.addEventListener("input", function () {
+      if (num.value.trim() === "") { clearVal(); return; }
+      var x = parseFloat(num.value);
+      if (isNaN(x)) return;
+      // while typing an age, allow a temporarily out-of-order value; snap it on blur/Enter
+      set(x, "num", c.age === 1);
+    });
+    num.addEventListener("change", function () {
+      if (num.value.trim() === "") { clearVal(); return; }
+      var x = parseFloat(num.value);
+      if (isNaN(x)) { num.value = state[c.id] > 0 ? state[c.id] : ""; return; }
+      set(x, "num");
+      num.value = (c.step < 1) ? fmt1(state[c.id]) : Math.round(state[c.id]);
+    });
+    return row;
+  }
+  function fill(id, list) { var m = document.getElementById(id); list.forEach(function (c) { m.appendChild(ctrlRow(c)); }); }
+
+  function setLabel(id, txt) { var el = document.querySelector('label[for="' + id + '"]'); if (el) el.textContent = txt; }
+  function updateAgeLabels() {
+    var a = state.startAge, b = state.endAge, n = years(state);
+    var okA = a > 0, okB = b > a;
+    var aT = okA ? a + "歳" : "開始", bT = okB ? b + "歳" : "目標";
+    [INCOME_PAIR, INCOME_SIDE, EXP_FIXED, EXP_RATIO].forEach(function (list) {
+      list.forEach(function (c) { setLabel(c.id, c.ageLbl === "e" ? bT : aT); });
+    });
+    setLabel("rampFrom", aT + "の月額");
+    setLabel("rampTo", bT + "の月額");
+    setLabel("goal", (okB ? b + "歳までに" : "") + "到達したい額");
+    setLabel("startAssets", "スタート資産" + (okA ? "（" + a + "歳）" : ""));
+    document.getElementById("hdLabel").textContent = (okB ? b + "歳時点の" : "目標年齢時点の") + "総資産（時価）";
+    document.getElementById("periodNote").textContent = okB
+      ? "この期間＝" + n + "年間を1年ずつ積み上げます。"
+      : "開始年齢と目標年齢を入力してください。";
+  }
+
+  function buildParams() {
+    var mount = document.getElementById("params");
+    mount.innerHTML = "";
+    PARAMS[state.mode].forEach(function (c) { mount.appendChild(ctrlRow(c)); });
+    document.getElementById("modeDesc").textContent = MODES.filter(function (m) { return m.id === state.mode; })[0].desc;
+  }
+  function buildModes() {
+    var box = document.getElementById("modes");
+    MODES.forEach(function (m) {
+      var b = document.createElement("button");
+      b.type = "button"; b.textContent = m.name;
+      b.setAttribute("aria-pressed", m.id === state.mode ? "true" : "false");
+      b.addEventListener("click", function () {
+        state.mode = m.id;
+        Array.prototype.forEach.call(box.children, function (c, k) { c.setAttribute("aria-pressed", MODES[k].id === state.mode ? "true" : "false"); });
+        buildParams(); render();
+      });
+      box.appendChild(b);
+    });
+  }
+  function syncExpSeg() {
+    Array.prototype.forEach.call(document.getElementById("expSeg").children, function (b) {
+      b.setAttribute("aria-pressed", b.getAttribute("data-v") === state.expMode ? "true" : "false");
+    });
+    document.getElementById("expFixed").hidden = state.expMode !== "fixed";
+    document.getElementById("expRatio").hidden = state.expMode !== "ratio";
+    document.getElementById("expNote").textContent = state.expMode === "ratio"
+      ? "本業の手取り月収に対する割合（副業は含めない）。"
+      : "開始・目標の月額を指定し、あいだは直線で補間。";
+  }
+  function buildExpSeg() {
+    Array.prototype.forEach.call(document.getElementById("expSeg").children, function (b) {
+      b.addEventListener("click", function () { state.expMode = b.getAttribute("data-v"); syncExpSeg(); render(); });
+    });
+  }
+  var SERIES = [
+    { key: "core", name: "コア株式", color: "var(--series-core)" },
+    { key: "cash", name: "現金プール", color: "var(--series-cash)" },
+    { key: "crypto", name: "暗号資産（時価）", color: "var(--series-crypto)" }
+  ];
+  function buildLegend() {
+    document.getElementById("legend").innerHTML = SERIES.map(function (s) {
+      return '<span><span class="dot" style="background:' + s.color + '"></span>' + s.name + '</span>';
+    }).join("");
+  }
+
+  var tip = document.getElementById("tip");
+  function drawMain(sim, goal) {
+    var svg = document.getElementById("chart");
+    var W = 760, H = 380, mL = 54, mR = 92, mT = 24, mB = 34;
+    var pw = W - mL - mR, ph = H - mT - mB;
+    var N = sim.rows.length;
+    var maxTotal = Math.max.apply(null, sim.rows.map(function (r) { return r.total; }));
+    var yMax = Math.max(goal * 1.05, maxTotal * 1.08);
+    var gstep = yMax > 20000 ? 5000 : yMax > 8000 ? 2000 : yMax > 3000 ? 1000 : 500;
+    yMax = Math.ceil(yMax / gstep) * gstep;
+    var y = function (v) { return mT + ph * (1 - v / yMax); };
+    var band = pw / N, bw = Math.min(46, band * 0.64);
+    var colors = { core: "var(--series-core)", cash: "var(--series-cash)", crypto: "var(--series-crypto)" };
+    var lblEvery = N > 20 ? 4 : N > 12 ? 2 : 1;
+    var g = "";
+    for (var t = 0; t <= yMax; t += gstep) {
+      g += '<line class="grid" x1="' + mL + '" y1="' + y(t) + '" x2="' + (mL + pw) + '" y2="' + y(t) + '"/>';
+      g += '<text class="tick" x="' + (mL - 8) + '" y="' + (y(t) + 4) + '" text-anchor="end">' + fmt(t) + '</text>';
+    }
+    g += '<line class="axis" x1="' + mL + '" y1="' + y(0) + '" x2="' + (mL + pw) + '" y2="' + y(0) + '"/>';
+    if (goal > 0 && goal <= yMax) {
+      g += '<line class="goal-line" x1="' + mL + '" y1="' + y(goal) + '" x2="' + (mL + pw) + '" y2="' + y(goal) + '"/>';
+      g += '<text class="goal-label" x="' + (mL + pw + 6) + '" y="' + (y(goal) + 4) + '">目標 ' + fmt(goal) + '</text>';
+    }
+    sim.rows.forEach(function (r, i) {
+      var cx = mL + band * i + (band - bw) / 2, acc = 0;
+      var order = ["core", "cash", "crypto"];
+      var topKey = order.filter(function (k) { return r[k] > 0.5; }).pop();
+      order.forEach(function (key) {
+        var v = r[key];
+        if (v <= 0.5) { acc += v; return; }
+        var yTop = y(acc + v), yBot = y(acc);
+        var h = Math.max(0, yBot - yTop - (acc > 0.5 ? 2 : 0));
+        g += '<rect class="seg" x="' + cx + '" y="' + yTop + '" width="' + bw + '" height="' + h + '" fill="' + colors[key] + '"' + (key === topKey ? ' rx="3"' : '') + '/>';
+        acc += v;
+      });
+      if (i === N - 1) g += '<text class="bar-label" x="' + (cx + bw / 2) + '" y="' + (y(r.total) - 8) + '" text-anchor="middle">' + fmt(r.total) + '</text>';
+      if (i % lblEvery === 0 || i === N - 1) g += '<text class="tick" x="' + (cx + bw / 2) + '" y="' + (H - mB + 18) + '" text-anchor="middle">' + r.age + '</text>';
+      g += '<rect x="' + (mL + band * i) + '" y="' + mT + '" width="' + band + '" height="' + ph + '" fill="transparent" data-i="' + i + '"/>';
+    });
+    var lr = sim.rows[N - 1], accL = 0;
+    ["core", "cash", "crypto"].forEach(function (key) {
+      var v = lr[key];
+      if (v > 0.5 && (y(accL) - y(accL + v)) > 15) {
+        var nm = key === "core" ? "コア株式" : key === "cash" ? "現金" : "暗号資産";
+        g += '<text class="dlabel" x="' + (mL + pw + 6) + '" y="' + (y(accL + v / 2) + 4) + '" fill="' + colors[key] + '">' + nm + '</text>';
+      }
+      accL += v;
+    });
+    svg.innerHTML = g;
+    Array.prototype.forEach.call(svg.querySelectorAll("rect[data-i]"), function (rect) {
+      rect.addEventListener("mousemove", function (ev) {
+        var r = sim.rows[+rect.getAttribute("data-i")];
+        tip.innerHTML = '<div class="tt-age">' + r.age + '歳（年末）</div>' +
+          '<div class="tt-row"><span>コア株式</span><span>' + fmt(r.core) + '</span></div>' +
+          '<div class="tt-row"><span>現金プール</span><span>' + fmt(r.cash) + '</span></div>' +
+          (r.crypto > 0.5 ? '<div class="tt-row"><span>暗号資産</span><span>' + fmt(r.crypto) + '</span></div>' : '') +
+          '<div class="tt-row"><span>年間投資額</span><span>' + fmt(r.invest) + '</span></div>' +
+          '<div class="tt-row tt-total"><span>総資産</span><span>' + fmt(r.total) + '</span></div>';
+        tip.classList.add("on");
+        var wrap = svg.parentElement.getBoundingClientRect();
+        tip.style.left = Math.min(ev.clientX - wrap.left + 14, wrap.width - tip.offsetWidth - 6) + "px";
+        tip.style.top = Math.max(ev.clientY - wrap.top - tip.offsetHeight - 10, 4) + "px";
+      });
+      rect.addEventListener("mouseleave", function () { tip.classList.remove("on"); });
+    });
+  }
+
+  function drawCompare(goal) {
+    var svg = document.getElementById("cmp");
+    var W = 760, H = 210, mL = 100, mR = 74, mT = 8, mB = 22;
+    var pw = W - mL - mR, ph = H - mT - mB;
+    var data = MODES.map(function (m) { return { id: m.id, name: m.name, v: project(m.id, state).last.total }; });
+    var maxV = Math.max(goal, Math.max.apply(null, data.map(function (d) { return d.v; }))) * 1.05;
+    var x = function (v) { return mL + pw * (v / maxV); };
+    var rowH = ph / data.length, bh = Math.min(24, rowH * 0.54);
+    var g = "";
+    if (goal > 0) {
+      g += '<line class="goal-line" x1="' + x(goal) + '" y1="' + mT + '" x2="' + x(goal) + '" y2="' + (mT + ph) + '"/>';
+      g += '<text class="goal-label" x="' + x(goal) + '" y="' + (H - 6) + '" text-anchor="middle">目標 ' + fmt(goal) + '</text>';
+    }
+    data.forEach(function (d, i) {
+      var cy = mT + rowH * i + (rowH - bh) / 2, active = d.id === state.mode;
+      g += '<text class="cmp-name" x="' + (mL - 10) + '" y="' + (cy + bh / 2 + 4) + '" text-anchor="end"' + (active ? ' font-weight="700"' : '') + '>' + d.name + '</text>';
+      g += '<rect class="cbar" x="' + mL + '" y="' + cy + '" width="' + Math.max(2, x(d.v) - mL) + '" height="' + bh + '" rx="3" fill="var(--accent)" fill-opacity="' + (active ? 1 : 0.3) + '"/>';
+      g += '<text class="cmp-val" x="' + (x(d.v) + 8) + '" y="' + (cy + bh / 2 + 4) + '">' + fmt(d.v) + '万</text>';
+    });
+    svg.innerHTML = g;
+  }
+
+  function setPlaceholders() {
+    document.getElementById("total").textContent = "—";
+    var gapEl = document.getElementById("gap"); gapEl.className = "gap"; gapEl.textContent = "";
+    document.getElementById("sub").innerHTML = "「期間（開始・目標年齢）」と「本業の年収」を入力すると、目標年齢時点の総資産がここに表示されます。";
+    document.getElementById("warn").hidden = true;
+    document.getElementById("goalFill").style.width = "0%";
+    document.getElementById("goalCap").textContent = "目標 —";
+    document.getElementById("tiles").innerHTML = ["コア株式", "現金プール", "暗号資産（時価）"].map(function (nm) {
+      return '<div class="tile"><div class="t-name">' + nm + '</div><div class="t-val">—</div></div>';
+    }).join("");
+    document.getElementById("kpis").innerHTML = ["投資 月額", "実効貯蓄率", "目標 達成率"].map(function (nm) {
+      return '<div class="tile kpi"><div class="k-name">' + nm + '</div><div class="k-val">—</div></div>';
+    }).join("");
+    document.getElementById("taxBody").innerHTML = '<p class="ctrl-hint">入力が完了すると表示されます。</p>';
+    document.getElementById("table").innerHTML = "";
+    document.getElementById("chart").innerHTML = '<text x="380" y="190" text-anchor="middle" class="tick" font-size="13">左の入力欄を埋めると推移が表示されます</text>';
+    document.getElementById("cmp").innerHTML = "";
+    document.getElementById("scn").innerHTML = "";
+    document.getElementById("scnNote").textContent = "";
+    updateAgeLabels();
+  }
+
+
+  function scnNum(id, def) { var v = parseFloat(document.getElementById(id).value); return isNaN(v) ? def : v; }
+  function scenarioState(delta, sidePct) {
+    var t = {}, k;
+    for (k in state) t[k] = state[k];
+    t.stock = Math.max(0, state.stock + delta);
+    t.sideStart = state.sideStart * sidePct / 100;
+    t.sideEnd = state.sideEnd * sidePct / 100;
+    return t;
+  }
+  function drawScenarios(goal) {
+    var svg = document.getElementById("scn");
+    var W = 760, H = 170, mL = 150, mR = 74, mT = 8, mB = 22;
+    var pw = W - mL - mR, ph = H - mT - mB;
+    var dd = scnNum("scnDownDelta", -2), ud = scnNum("scnUpDelta", 1.5);
+    var ds = scnNum("scnDownSide", 70), us = scnNum("scnUpSide", 120);
+    var defs = [
+      { name: "下振れ", sub: fmt1(Math.max(0, state.stock + dd)) + "% ・副業" + Math.round(ds) + "%", st: scenarioState(dd, ds), op: 0.3 },
+      { name: "基本",   sub: fmt1(state.stock) + "% ・副業100%", st: state, op: 1 },
+      { name: "上振れ", sub: fmt1(state.stock + ud) + "% ・副業" + Math.round(us) + "%", st: scenarioState(ud, us), op: 0.6 }
+    ];
+    var data = defs.map(function (d) { d.v = project(state.mode, d.st).last.total; return d; });
+    var maxV = Math.max(goal || 0, Math.max.apply(null, data.map(function (d) { return d.v; }))) * 1.05;
+    var x = function (v) { return mL + pw * (v / maxV); };
+    var rowH = ph / data.length, bh = Math.min(26, rowH * 0.56);
+    var g = "";
+    if (goal > 0) {
+      g += '<line class="goal-line" x1="' + x(goal) + '" y1="' + mT + '" x2="' + x(goal) + '" y2="' + (mT + ph) + '"/>';
+      g += '<text class="goal-label" x="' + x(goal) + '" y="' + (H - 6) + '" text-anchor="middle">目標 ' + fmt(goal) + '</text>';
+    }
+    data.forEach(function (d, i) {
+      var cy = mT + rowH * i + (rowH - bh) / 2;
+      g += '<text class="cmp-name" x="' + (mL - 10) + '" y="' + (cy + bh / 2 - 1) + '" text-anchor="end" font-weight="700">' + d.name + '</text>';
+      g += '<text class="tick" x="' + (mL - 10) + '" y="' + (cy + bh / 2 + 11) + '" text-anchor="end">' + d.sub + '</text>';
+      g += '<rect class="cbar" x="' + mL + '" y="' + cy + '" width="' + Math.max(2, x(d.v) - mL) + '" height="' + bh + '" rx="3" fill="var(--accent)" fill-opacity="' + d.op + '"/>';
+      g += '<text class="cmp-val" x="' + (x(d.v) + 8) + '" y="' + (cy + bh / 2 + 4) + '">' + fmt(d.v) + '万</text>';
+    });
+    svg.innerHTML = g;
+    var note = "";
+    if (goal > 0) {
+      var hit = data.filter(function (d) { return d.v >= goal; }).map(function (d) { return d.name; });
+      note = hit.length === 0 ? "どのシナリオでも目標に届きません。"
+        : hit.length === 3 ? "下振れでも目標に届きます。"
+        : "目標に届くのは " + hit.join("・") + " です。";
+    }
+    if (!(state.sideStart > 0 || state.sideEnd > 0)) note += (note ? " " : "") + "副業が未入力のため、副業の達成度は結果に影響しません。";
+    document.getElementById("scnNote").textContent = note;
+  }
+  ["scnDownDelta", "scnUpDelta", "scnDownSide", "scnUpSide"].forEach(function (id) {
+    document.getElementById(id).addEventListener("input", function () { if (ready()) drawScenarios(state.goal); });
+  });
+
+  function render() {
+    if (!ready()) { setPlaceholders(); return; }
+    var s = state, sim = project(s.mode, s), last = sim.last, n = sim.years;
+    var hasGoal = s.goal > 0;
+    document.getElementById("total").textContent = fmt(last.total);
+
+    var gapEl = document.getElementById("gap");
+    if (!hasGoal) { gapEl.className = "gap"; gapEl.textContent = ""; }
+    else {
+      var diff = last.total - s.goal;
+      if (diff >= 0) { gapEl.className = "gap good"; gapEl.textContent = "目標達成 +" + fmt(diff) + "万"; }
+      else if (diff >= -s.goal * 0.2) { gapEl.className = "gap warning"; gapEl.textContent = "あと " + fmt(-diff) + "万"; }
+      else { gapEl.className = "gap critical"; gapEl.textContent = "あと " + fmt(-diff) + "万"; }
+    }
+
+    var sub = n + "年の投資拠出 <b>" + fmt(sim.totalInvest) + "万</b>／貯蓄合計 <b>" + fmt(sim.totalSaved) + "万</b>" + (sim.swept > 0.5 ? "（うち現金から株式へ回した額 <b>" + fmt(sim.swept) + "万</b>）" : "") + "／運用益 <b>" + fmt(sim.gain) + "万</b>。";
+    if (hasGoal) {
+      if (sim.goalAge && sim.goalAge <= s.endAge) sub += " " + s.endAge + "歳で目標到達。";
+      else if (sim.goalAge) sub += " このペースなら目標は <b>約" + sim.goalAge + "歳</b>。";
+      else sub += " このペースでは " + (s.endAge + 25) + "歳までに目標へ届きません。";
+    } else sub += " （目標額を入れると到達年齢を表示）";
+    document.getElementById("sub").innerHTML = sub;
+
+    var nisaPct = Math.min(100, sim.nisaBasis / NISA_LIFETIME * 100);
+    var taxNote = sim.overLifetime > 0
+      ? "コアの拠出のうち <b>" + fmt(sim.overLifetime) + "万</b> はNISAの枠（年間360万・生涯1,800万）に収まらず、課税口座に入る想定。"
+      : "コアの拠出は生涯枠1,800万の範囲内（NISAのみ・非課税）。";
+    document.getElementById("taxBody").innerHTML =
+      '<div class="bar-goal" style="margin-top:0"><div class="track"><div class="fill" style="width:' + nisaPct + '%"></div></div>' +
+      '<div class="cap"><span>NISA非課税枠 使用</span><span>' + fmt(sim.nisaBasis) + ' / ' + fmt(NISA_LIFETIME) + '万（' + Math.round(nisaPct) + '%）</span></div></div>' +
+      '<p class="sub" style="margin-top:12px">' + taxNote + '</p>' +
+      '<div class="tiles" style="margin-top:10px">' +
+        '<div class="tile"><div class="t-name">株式・課税口座分の含み益</div><div class="t-val">' + fmt(sim.stockGain) + '万</div><div class="t-sub">税 −' + fmt(sim.stockTax) + '万（20.315%）</div></div>' +
+        '<div class="tile"><div class="t-name">暗号資産の含み益</div><div class="t-val">' + fmt(sim.cryptoGainAmt) + '万</div><div class="t-sub">税 −' + fmt(sim.cryptoTax) + '万（' + (s.cryptoTaxRate || 0) + '%・雑所得目安）</div></div>' +
+        '<div class="tile"><div class="t-name">税引後の総資産 目安</div><div class="t-val">' + fmt(sim.afterTaxTotal) + '万</div><div class="t-sub">時価から −' + fmt(sim.stockTax + sim.cryptoTax) + '万</div></div>' +
+      '</div>' +
+      (sim.annualOverCount > 0 ? '<p class="ctrl-hint" style="margin-top:8px">年間拠出がNISA年間枠（360万）を超える年が' + sim.annualOverCount + '年あります（その年の超過分は課税口座）。</p>' : '');
+
+    var warn = document.getElementById("warn"), wmsg = [];
+    if (sim.shortfall > 5) wmsg.push("⚠ 投資額が「手取り＋副業−支出」を上回る年があります（累計 約" + fmt(sim.shortfall) + "万の不足）。投資の決め方か支出を見直してください。");
+    if (sim.reserveShort > 5) wmsg.push("⚠ 自己投資・予備費が現金プールを上回る年があります（累計 約" + fmt(sim.reserveShort) + "万を払えていません）。予備費を減らすか、支出を見直してください。");
+    warn.hidden = wmsg.length === 0;
+    warn.innerHTML = wmsg.join("<br>");
+
+    var pct = hasGoal ? Math.max(0, Math.min(100, last.total / s.goal * 100)) : 0;
+    document.getElementById("goalFill").style.width = pct + "%";
+    document.getElementById("goalCap").textContent = hasGoal
+      ? "目標 " + fmt(s.goal) + "万（達成率 " + Math.round(pct) + "%）"
+      : "目標額 未入力";
+
+    var comp = [
+      { n: "コア株式", c: "var(--series-core)", v: last.core },
+      { n: "現金プール", c: "var(--series-cash)", v: last.cash },
+      { n: "暗号資産（時価）", c: "var(--series-crypto)", v: last.crypto }
+    ];
+    document.getElementById("tiles").innerHTML = comp.map(function (t) {
+      return '<div class="tile"><div class="t-name"><span class="dot" style="background:' + t.c + '"></span>' + t.n + '</div>' +
+        '<div class="t-val">' + fmt(t.v) + '</div><div class="t-sub">' + (last.total > 0 ? Math.round(t.v / last.total * 100) : 0) + '%</div></div>';
+    }).join("");
+
+    document.getElementById("kpis").innerHTML =
+      '<div class="tile kpi"><div class="k-name">投資 月額 初年度→最終年</div><div class="k-val">' + fmt1(sim.rows[0].invest / 12) + '→' + fmt1(last.invest / 12) + '万</div></div>' +
+      '<div class="tile kpi"><div class="k-name">実効貯蓄率（対手取り・' + n + '年平均）</div><div class="k-val">' + Math.round(sim.savingsRate * 100) + '%</div></div>' +
+      '<div class="tile kpi"><div class="k-name">目標 達成率</div><div class="k-val">' + (hasGoal ? Math.round(last.total / s.goal * 100) + '%' : '—') + '</div></div>';
+
+    document.getElementById("table").innerHTML =
+      '<thead><tr><th>年齢</th><th>副業</th><th>年間投資</th><th>現金へ</th><th>現金→株式</th><th>コア株式</th><th>現金プール</th><th>暗号資産</th><th>総資産</th></tr></thead><tbody>' +
+      sim.rows.map(function (r) {
+        return '<tr><td>' + r.age + '歳</td><td>' + fmt(r.side) + '</td><td>' + fmt(r.invest) + '</td><td>' + fmt(r.left) + '</td><td>' + fmt(r.swept) + '</td><td>' + fmt(r.core) + '</td><td>' + fmt(r.cash) + '</td><td>' + fmt(r.crypto) + '</td><td>' + fmt(r.total) + '</td></tr>';
+      }).join("") + '</tbody>';
+
+    updateAgeLabels();
+    drawMain(sim, s.goal);
+    drawCompare(s.goal);
+    drawScenarios(s.goal);
+  }
+
+  fill("periodPair", PERIOD);
+  fill("goalBox", GOALBOX);
+  fill("incomePair", INCOME_PAIR);
+  fill("incomeSide", INCOME_SIDE);
+  fill("expFixed", EXP_FIXED);
+  fill("expRatio", EXP_RATIO);
+  fill("common", COMMON);
+  buildModes();
+  buildExpSeg();
+  buildParams();
+  buildLegend();
+  syncExpSeg();
+  document.getElementById("sweep").addEventListener("change", function (e) { state.sweep = e.target.checked; render(); });
+  render();
+})();
+</script>
