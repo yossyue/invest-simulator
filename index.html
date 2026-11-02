@@ -244,6 +244,7 @@
           <span class="gap" id="gap"></span>
         </div>
         <p class="sub" id="sub"></p>
+        <p class="sub" id="realLine" hidden></p>
         <div class="warnbar" id="warn" hidden></div>
         <div class="bar-goal">
           <div class="track"><div class="fill" id="goalFill"></div></div>
@@ -307,6 +308,7 @@
           <li>毎月の投資額を除いた残り（手取り＋副業−支出−投資）は現金プールに積む。暗号資産の投入も現金プールから。「株式へ回す」設定で、保持額を超えた現金プールを年1回コア株式へ移す。</li>
           <li>コア株式・現金プール・暗号資産はそれぞれ入力した利回りで成長（円ベース名目、為替・暴落の経路・インフレ・信託報酬は除く）。暗号資産の利益率は全期間トータルの騰落率。</li>
           <li>コアの拠出は生涯枠1,800万・年間枠360万までNISAで非課税、それを超えた分は課税口座として積み上がる想定でコアの評価額・含み益を按分。「税金」カードの税引後の目安は、<b>その時点で全部売却したと仮定</b>した概算（課税口座分の含み益に20.315%＝上場株式等の申告分離課税、暗号資産の含み益に指定税率＝雑所得・総合課税の目安）。実際は損益通算・所得控除・売却タイミングで変わる。NISA枠内は保有中・売却時とも非課税（枠は再利用しない前提）。</li>
+          <li>インフレ率を入れると、年収・支出・投資額は入力値のまま（物価に連動して増えない）で、結果の金額だけを「今の価値」に割り戻して表示します。</li>
           <li><b>計画用の試算であり投資助言ではありません。実際の税額は税理士等に確認してください。</b>将来の成果を保証しません。</li>
         </ul>
       </footer>
@@ -361,7 +363,8 @@
     { id: "cryptoGain",  label: "暗号資産の利益率（全期間）", min: -90, max: 900, step: 5, val: 50, unit: "%", hint: "+50 = 1.5倍" },
     { id: "cryptoTaxRate", label: "暗号資産の税率（売却時・目安）", min: 0, max: 55, step: 1, val: 45, unit: "%", hint: "雑所得・総合課税の概算。所得が高いほど上がる" },
     { id: "selfReserve", label: "自己投資・予備費（年）", min: 0, max: 200, step: 5, val: 30, unit: "万", hint: "現金プールから毎年支出" },
-    { id: "keepLiquid",  label: "現金プールの保持額", min: 0, max: 1500, step: 10, val: 200, unit: "万", hint: "これを超えた分を株式へ（株式へ回す設定時）" }
+    { id: "keepLiquid",  label: "現金プールの保持額", min: 0, max: 1500, step: 10, val: 200, unit: "万", hint: "これを超えた分を株式へ（株式へ回す設定時）" },
+    { id: "inflation",   label: "インフレ率（年）", min: 0, max: 6, step: 0.1, val: 0, unit: "%", hint: "入れると、将来の金額を「今の価値」に直した額も表示" }
   ];
   var NET_TABLE = [[0,0],[300,242],[350,281],[400,319],[450,357],[500,393],[550,430],[600,464],[650,497],[700,530],[750,562],[800,596],[850,626],[900,655],[950,685],[1000,713],[1100,768],[1200,822],[1300,875],[1500,980],[2000,1290]];
 
@@ -799,6 +802,13 @@
       else sub += " このペースでは " + (s.endAge + 25) + "歳までに目標へ届きません。";
     } else sub += " （目標額を入れると到達年齢を表示）";
     document.getElementById("sub").innerHTML = sub;
+    var infl = s.inflation > 0 ? s.inflation / 100 : 0, realEl = document.getElementById("realLine");
+    function defl(k) { return Math.pow(1 + infl, k); }
+    if (infl > 0) {
+      var realTotal = last.total / defl(n);
+      realEl.innerHTML = "インフレ年" + fmt1(s.inflation) + "%を引くと、<b>今の価値で約" + fmt(realTotal) + "万円</b>（" + n + "年分の物価上昇で割り戻し）" + (hasGoal ? "。目標の" + Math.round(realTotal / s.goal * 100) + "%" : "") + "。";
+      realEl.hidden = false;
+    } else { realEl.hidden = true; realEl.innerHTML = ""; }
 
     var nisaPct = Math.min(100, sim.nisaBasis / NISA_LIFETIME * 100);
     var taxNote = sim.overLifetime > 0
@@ -843,9 +853,9 @@
       '<div class="tile kpi"><div class="k-name">目標 達成率</div><div class="k-val">' + (hasGoal ? Math.round(last.total / s.goal * 100) + '%' : '—') + '</div></div>';
 
     document.getElementById("table").innerHTML =
-      '<thead><tr><th>年齢</th><th>副業</th><th>年間投資</th><th>現金へ</th><th>現金→株式</th><th>コア株式</th><th>現金プール</th><th>暗号資産</th><th>総資産</th></tr></thead><tbody>' +
-      sim.rows.map(function (r) {
-        return '<tr><td>' + r.age + '歳</td><td>' + fmt(r.side) + '</td><td>' + fmt(r.invest) + '</td><td>' + fmt(r.left) + '</td><td>' + fmt(r.swept) + '</td><td>' + fmt(r.core) + '</td><td>' + fmt(r.cash) + '</td><td>' + fmt(r.crypto) + '</td><td>' + fmt(r.total) + '</td></tr>';
+      '<thead><tr><th>年齢</th><th>副業</th><th>年間投資</th><th>現金へ</th><th>現金→株式</th><th>コア株式</th><th>現金プール</th><th>暗号資産</th><th>総資産</th>' + (infl > 0 ? '<th>今の価値</th>' : '') + '</tr></thead><tbody>' +
+      sim.rows.map(function (r, ri) {
+        return '<tr><td>' + r.age + '歳</td><td>' + fmt(r.side) + '</td><td>' + fmt(r.invest) + '</td><td>' + fmt(r.left) + '</td><td>' + fmt(r.swept) + '</td><td>' + fmt(r.core) + '</td><td>' + fmt(r.cash) + '</td><td>' + fmt(r.crypto) + '</td><td>' + fmt(r.total) + '</td>' + (infl > 0 ? '<td>' + fmt(r.total / defl(ri + 1)) + '</td>' : '') + '</tr>';
       }).join("") + '</tbody>';
 
     updateAgeLabels();
