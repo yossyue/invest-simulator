@@ -229,11 +229,16 @@
         <p class="mode-desc" id="modeDesc"></p>
         <div id="params"></div>
         <label class="check"><input type="checkbox" id="sweep">
-          <span>余剰の現金を年1回 株式へ回す<span class="c-hint">オフにすると余剰はすべて現金のまま。保持額は詳細設定。</span></span>
+          <span>余剰の現金を年1回 株式へ回す<span class="c-hint">オフにすると余剰はすべて現金のまま。保持額は「その他」。</span></span>
         </label>
       </div>
 
-      <details class="adv"><summary>詳細設定</summary><div id="common"></div></details>
+      <div class="group">
+        <p class="group-label">投資</p>
+        <div id="invest"></div>
+      </div>
+
+      <details class="adv"><summary>その他</summary><div id="other"></div></details>
     </form>
 
     <div class="results">
@@ -870,7 +875,9 @@
   fill("incomeSide", INCOME_SIDE);
   fill("expFixed", EXP_FIXED);
   fill("expRatio", EXP_RATIO);
-  fill("common", COMMON);
+  var INVEST_IDS = ["startAssets", "stock", "cryptoTotal", "cryptoGain", "cryptoTaxRate"];
+  fill("invest", COMMON.filter(function (c) { return INVEST_IDS.indexOf(c.id) >= 0; }));
+  fill("other", COMMON.filter(function (c) { return INVEST_IDS.indexOf(c.id) < 0; }));
   buildModes();
   buildExpSeg();
   buildParams();
